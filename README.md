@@ -67,7 +67,18 @@ unet.py - Use this file to train the UNet model, note: dataset is not provided
 
     example: python unet.py --dset ./dset.h5 --normalize False --id_gpu 0
 
-milin.py - FILL THIS
+milin.py - Use this file to train the customized unet model
+```bash
+usage: milin.py [-h] [-ts] [-vs] [-d]
+
+options:
+  -h, --help         show this help message and exit
+  -ts , --TrainSet   filepath of training set (default:
+                     ./overlap_1024_25mhz_3days_train_2sig.h5)
+  -vs , --ValSet     filepath of valiation set (default:
+                     ./overlap_1024_25mhz_3days_test_2sig.h5)
+  -d , --Device      specify the device for running model (default: -1)
+```
 
 eval_DL_onnx.py - Use this file to run the model on raw IQs
 
