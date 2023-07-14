@@ -113,12 +113,9 @@ def main():
 
     #MILIN ADD PLOTTING HERE
     a, b = np.meshgrid(np.linspace(0,1024*1024,1024),np.linspace(0,1024,1024))
-    print(a)
     fig, ax = plt.subplots(1,2,sharey=True,figsize=(9,4))
     all_samps = np.reshape(all_samps, -1)
-    print(all_samps.shape)
     spectrum,_,_,_ = plt.specgram(all_samps,noverlap=0,NFFT=1024)
-    print(spectrum.shape)
     ax[0].imshow(np.abs(spectrum),cmap='viridis',norm=matplotlib.colors.LogNorm(vmin=np.min(np.abs(spectrum)),vmax=np.max(np.abs(spectrum))),aspect='auto',origin='lower')
     ax[0].set_title('Over-The-Air Spectrogram')
     ax[0].set_ylabel('Frequency [MHz]')
