@@ -36,8 +36,8 @@ class TrainValHandler():
             self.traindataloader = DataLoader(self.trainset,self.batchsize,shuffle=True,num_workers=workers)
         self.valdataloader = DataLoader(self.valset,self.batchsize,shuffle=True,num_workers=workers)
     
-    def save_model(self,i):
-        path = self.path+"%d.pth"%i
+    def save_model(self):
+        path = self.path
         torch.save(self.model,path)
 
     def train_one_epoch(self):
@@ -93,7 +93,7 @@ class TrainValHandler():
             if val_loss < self.min_loss:
                 self.min_loss = val_loss
                 patience = 0
-                self.save_model(epoch)
+                self.save_model()
                 print("save best model at epch %d"%(epoch+1))
             else:
                 patience += 1

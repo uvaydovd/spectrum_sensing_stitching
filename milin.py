@@ -33,13 +33,13 @@ def train():
     history = handler.train()
 
     # retrieve the best model and convert to onnx
-    model = torch.load(ckpt)
+    model = torch.load(ckpt,map_location='cpu')
     model.eval()
     dummy_input = torch.randn(1, 2, 1024, requires_grad=True)  
     torch_out = model(dummy_input)
     torch.onnx.export(model,         # model being run 
             dummy_input,       # model input (or a tuple for multiple inputs) 
-            "unet_nonlocal_real.onnx",       # where to save the model  
+            "milin.onnx",       # where to save the model  
             export_params=True,  # store the trained parameter weights inside the model file 
             opset_version=11,    # the ONNX version to export the model to 
             do_constant_folding=True,  # whether to execute constant folding for optimization 
