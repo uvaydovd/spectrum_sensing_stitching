@@ -11,6 +11,10 @@ import argparse
 import os
 from sklearn.preprocessing import normalize
 
+### MODIFICATION HERE: for plotting ####
+import matplotlib.pyplot as plt
+import matplotlib
+###### MODIFICATION END ################
 
 def aggregate(y_pred, nparts):
 
@@ -27,13 +31,24 @@ def aggregate(y_pred, nparts):
 
     return np.array(all_pred)
 
+### MODIFICATION HERE: add code for noise estimation
+import torch
+from torch import nn
+def ms_estimate(tensor):
+    p = tensor[:,0,:]**2+tensor[:,1,:]**2
+    batch = p.shape[0]
+    p = torch.from_numpy(p).float()
+    p_smooth = nn.functional.conv1d(p.view(batch,1,-1),torch.ones(40).view(1,1,-1),stride=10)/40
+    min_p,_ = torch.min(p_smooth,dim=2)
+    return min_p.numpy()
+### MODIFICATION END ###
 
 def main():
 
 
     #Open IQ file
     with open(iq_fp) as binfile:
-        all_samps = np.fromfile(binfile, dtype=np.complex64, count=-1, offset=0)
+        all_samps = np.fromfile(binfile, dtype=np.complex64, count=1024*1024, offset=0)
 
     assert (len(all_samps)%inp_dim == 0), "Input needs to be multiple of 1024"
 
@@ -57,6 +72,13 @@ def main():
         if args.normalize:
             all_samps_frequency_strided = normalize(np.reshape(all_samps_frequency_strided, (-1, 2)))
         all_samps_frequency_strided = np.reshape(all_samps_frequency_strided, (-1, 1024, 2))
+        ### MODIFICATION HERE: switch axis for torch version input and do noise estimation ###
+        if args.channel_first:
+            all_samps_frequency_strided = np.swapaxes(all_samps_frequency_strided,1,2)
+            min_p_test = ms_estimate(all_samps_frequency_strided).reshape(-1,1,1)
+            correction = min_p_test/0.0015 # 0.0015 is the estimated noise in training set
+            all_samps_frequency_strided = all_samps_frequency_strided/np.sqrt(correction)
+        ### MODIFICATION END ###
         y_pred = sess.run(None, {input_name: all_samps_frequency_strided.astype(np.float32)})[0]
 
         y_pred = np.swapaxes(y_pred, 1,2)
@@ -69,15 +91,45 @@ def main():
         if args.normalize:
             all_samps_frequency = normalize(np.reshape(all_samps_frequency, (-1, 2)))
         all_samps_frequency = np.reshape(all_samps_frequency, (-1, 1024, 2))
+        ### MODIFICATION HERE: switch axis for torch version input ###
+        if args.channel_first:
+            all_samps_frequency = np.swapaxes(all_samps_frequency,1,2)
+            min_p_test = ms_estimate(all_samps_frequency).reshape(-1,1,1)
+            correction = min_p_test/0.0015 # 0.0015 is the estimated noise in training set
+            all_samps_frequency = all_samps_frequency/np.sqrt(correction)
+        ### MODIFICATION END ###
         y_pred = sess.run(None, {input_name: all_samps_frequency.astype(np.float32)})[0]
 
-
-
-
-    y_pred = np.argmax(y_pred, axis=-1)
+    ### MODIFICATION HERE: for torch output the dimension is nsamples x 5, should pad for the empty class
+    if args.channel_first:
+        y_pred[y_pred<=0.5]=0
+        spec_occup = np.sum(y_pred,axis=1)
+        spec_empty = np.expand_dims(np.logical_not(spec_occup,out=np.zeros_like(spec_occup)),axis=1)
+        y_pred = np.concatenate((spec_empty,y_pred),axis=1)
+        y_pred = np.argmax(y_pred,axis=1)
+    else:
+        y_pred = np.argmax(y_pred, axis=-1)
+    ### MODIFICATION END ###
 
     #MILIN ADD PLOTTING HERE
-
+    a, b = np.meshgrid(np.linspace(0,1024*1024,1024),np.linspace(0,1024,1024))
+    fig, ax = plt.subplots(1,2,sharey=True,figsize=(9,4))
+    all_samps = np.reshape(all_samps, -1)
+    spectrum,_,_,_ = plt.specgram(all_samps,noverlap=0,NFFT=1024)
+    ax[0].imshow(np.abs(spectrum),cmap='viridis',norm=matplotlib.colors.LogNorm(vmin=np.min(np.abs(spectrum)),vmax=np.max(np.abs(spectrum))),aspect='auto',origin='lower')
+    ax[0].set_title('Over-The-Air Spectrogram')
+    ax[0].set_ylabel('Frequency [MHz]')
+    ax[0].set_xlabel('Time [ms]')
+    ax[0].set_xticks([],[])
+    cs=ax[1].contourf(a,b,y_pred.T,levels=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5] , cmap = 'Dark2')
+    ax[1].set_title('Inference')
+    ax[1].set_xlabel('Time [ms]')
+    proxy = [plt.Rectangle((0,0),1,1,fc = pc.get_facecolor()[0]) for pc in cs.collections]
+    plt.xticks([],[])
+    plt.yticks([],[])
+    plt.figlegend(proxy,["WiFi", "LTE", "Zigbee", "LoRa", "BLE"])
+    plt.tight_layout()
+    plt.show()
 
 def get_args():
     parser = argparse.ArgumentParser(description='GPU and Model Specifications')
@@ -91,6 +143,10 @@ def get_args():
                         help='specifies the model filepath')
     parser.add_argument('--normalize', default=False, type=bool,
                         help='specifies whether to normalize data or not')
+    ### MODIFICATION HERE: new argument for processing torth version model###
+    parser.add_argument('--channel_first', default=False, type=bool,
+                        help='specifies the input shape')
+    ### MODIFICATION END ###
     return parser.parse_args()
 
 if __name__ == "__main__":
