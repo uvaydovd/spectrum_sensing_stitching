@@ -10,11 +10,10 @@ import onnxruntime as rt
 import argparse
 import os
 from sklearn.preprocessing import normalize
-
-### MODIFICATION HERE: for plotting ####
 import matplotlib.pyplot as plt
 import matplotlib
-###### MODIFICATION END ################
+import torch
+from torch import nn
 
 def aggregate(y_pred, nparts):
 
@@ -31,9 +30,7 @@ def aggregate(y_pred, nparts):
 
     return np.array(all_pred)
 
-### MODIFICATION HERE: add code for noise estimation
-import torch
-from torch import nn
+
 def ms_estimate(tensor):
     p = tensor[:,0,:]**2+tensor[:,1,:]**2
     batch = p.shape[0]
@@ -41,7 +38,6 @@ def ms_estimate(tensor):
     p_smooth = nn.functional.conv1d(p.view(batch,1,-1),torch.ones(40).view(1,1,-1),stride=10)/40
     min_p,_ = torch.min(p_smooth,dim=2)
     return min_p.numpy()
-### MODIFICATION END ###
 
 def main():
 
@@ -72,13 +68,13 @@ def main():
         if args.normalize:
             all_samps_frequency_strided = normalize(np.reshape(all_samps_frequency_strided, (-1, 2)))
         all_samps_frequency_strided = np.reshape(all_samps_frequency_strided, (-1, 1024, 2))
-        ### MODIFICATION HERE: switch axis for torch version input and do noise estimation ###
+
         if args.channel_first:
             all_samps_frequency_strided = np.swapaxes(all_samps_frequency_strided,1,2)
             min_p_test = ms_estimate(all_samps_frequency_strided).reshape(-1,1,1)
             correction = min_p_test/0.0015 # 0.0015 is the estimated noise in training set
             all_samps_frequency_strided = all_samps_frequency_strided/np.sqrt(correction)
-        ### MODIFICATION END ###
+
         y_pred = sess.run(None, {input_name: all_samps_frequency_strided.astype(np.float32)})[0]
 
         y_pred = np.swapaxes(y_pred, 1,2)
@@ -91,16 +87,15 @@ def main():
         if args.normalize:
             all_samps_frequency = normalize(np.reshape(all_samps_frequency, (-1, 2)))
         all_samps_frequency = np.reshape(all_samps_frequency, (-1, 1024, 2))
-        ### MODIFICATION HERE: switch axis for torch version input ###
+
         if args.channel_first:
             all_samps_frequency = np.swapaxes(all_samps_frequency,1,2)
             min_p_test = ms_estimate(all_samps_frequency).reshape(-1,1,1)
             correction = min_p_test/0.0015 # 0.0015 is the estimated noise in training set
             all_samps_frequency = all_samps_frequency/np.sqrt(correction)
-        ### MODIFICATION END ###
+
         y_pred = sess.run(None, {input_name: all_samps_frequency.astype(np.float32)})[0]
 
-    ### MODIFICATION HERE: for torch output the dimension is nsamples x 5, should pad for the empty class
     if args.channel_first:
         y_pred[y_pred<=0.5]=0
         spec_occup = np.sum(y_pred,axis=1)
@@ -109,9 +104,7 @@ def main():
         y_pred = np.argmax(y_pred,axis=1)
     else:
         y_pred = np.argmax(y_pred, axis=-1)
-    ### MODIFICATION END ###
 
-    #MILIN ADD PLOTTING HERE
     a, b = np.meshgrid(np.linspace(0,1024*1024,1024),np.linspace(0,1024,1024))
     fig, ax = plt.subplots(1,2,sharey=True,figsize=(9,4))
     all_samps = np.reshape(all_samps, -1)
@@ -143,10 +136,8 @@ def get_args():
                         help='specifies the model filepath')
     parser.add_argument('--normalize', default=False, type=bool,
                         help='specifies whether to normalize data or not')
-    ### MODIFICATION HERE: new argument for processing torth version model###
     parser.add_argument('--channel_first', default=False, type=bool,
                         help='specifies the input shape')
-    ### MODIFICATION END ###
     return parser.parse_args()
 
 if __name__ == "__main__":
