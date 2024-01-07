@@ -1,4 +1,4 @@
-# Stitching the Spectrum: Multi-label Multi-class Semantic Spectrum Segmentation with Wideband Signal Stitching
+# Stitching the Spectrum: Semantic Spectrum Segmentation with Wideband Signal Stitching
 
 This repo contains the code used in the paper: "Stitching the Spectrum: Multi-label Multi-class Semantic Spectrum Segmentation with Wideband Signal Stitching".
 Our model is an altered 1D version of the famous UNet model with added multi-label multi-class functionality and non-local attention mechanism. 
