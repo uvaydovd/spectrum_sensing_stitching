@@ -133,7 +133,7 @@ if __name__ == '__main__':
         all_inputs, all_labels, test_size=0.1, random_state=42)
 
     f_test = h5py.File(
-        h5_folder_fp + 'overlap_1024_25mhz_3days_test_2sig.h5', 'w')
+        h5_folder_fp + 'test.h5', 'w')
     xtest = f_test.create_dataset('X', (X_test.shape[0], X_test.shape[1], X_test.shape[2]), dtype='f')
     ytest = f_test.create_dataset('y', (y_test.shape[0],y_test.shape[1], y_test.shape[2]), dtype='i')
 
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     ytest[()] = y_test
 
     f_train = h5py.File(
-        h5_folder_fp + 'overlap_1024_25mhz_3days_train_2sig.h5', 'w')
+        h5_folder_fp + 'train.h5', 'w')
     xtrain = f_train.create_dataset('X', (X_train.shape[0], X_train.shape[1], X_train.shape[2]), dtype='f')
     ytrain = f_train.create_dataset('y', (y_train.shape[0],y_train.shape[1], y_train.shape[2]), dtype='i')
 
