@@ -8,16 +8,21 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 
-
+#if enabled will plot a sample
 debug = False
-json_reports = False
-
+#total number of training/testing samples to generate
 nsamples = 500_000
+#max number of signals to be plotted at the same time in frequency
 max_simultaneous_signals = 2
+#total observable bandwidth
 bw = 25_000_000
+#input size to the NN
 buf = 1024
+#frequency resolution or bw of a single bin in the NN input
 resolution = (bw/1000000)/buf
+#probabliity that the entire observable bandwith doesnt contain any signal
 prob_empty = 0.05
+#probability that the first signal injected into the input is centered
 prob_centered = 0.5
 
 nclasses = 5
@@ -29,9 +34,10 @@ label_dict_str= {
     'ble'       : 4
 }
 
+#flipped version of above dict
 label_dict_int = dict([(value, key) for key, value in label_dict_str.items()])
 
-
+#dict of bw for each signal in mhz
 signal_bw_mhz_dict = {
     'wifi'      : 20,
     'lte'       : 10,
@@ -40,6 +46,7 @@ signal_bw_mhz_dict = {
     'ble'       : 1
 }
 
+#dict of bw for each signal in number of IQs
 signal_bw_mhz_niqs = {}
 for label in signal_bw_mhz_dict:
     niqs = np.ceil(signal_bw_mhz_dict[label]/resolution)
@@ -49,11 +56,12 @@ for label in signal_bw_mhz_dict:
 
     signal_bw_mhz_niqs[label] = int(niqs)
 
-freq_arr = np.linspace(-(bw/1000000)/2, (bw/1000000)/2, buf)
+#path to signal bank dir
+#each class should have its own h5 file i.e. lora.h5, wifi.h5 etc
+data_fp = './signal_bank/'
+h5_folder_fp = './processed/'
 
-h5_folder_fp = '/mnt/wines/iarpa/arena/da6000/processed/'
-data_fp = h5_folder_fp + str(buf) + '/'
-
+#grab random signal from signal bank
 def get_sample(protocol):
     f_signal = h5py.File(data_fp + protocol + '.h5', 'r')
     samp = f_signal[protocol][np.random.randint(f_signal[protocol].shape[0])]
@@ -66,6 +74,7 @@ if __name__ == '__main__':
     all_labels = []
     all_inputs = []
 
+    #control the classes you want present
     protocols_used = [0,1,2,3,4]
     for i in tqdm(range(nsamples)):
         label = np.zeros([nclasses,buf], dtype=int)
