@@ -1,6 +1,7 @@
 # Stitching the Spectrum: Semantic Spectrum Segmentation with Wideband Signal Stitching
+# UNDER CONSTRUCTION
 
-This repo contains the code used in the paper: "Stitching the Spectrum: Multi-label Multi-class Semantic Spectrum Segmentation with Wideband Signal Stitching".
+This repo contains the code used in the paper: "Stitching the Spectrum: Semantic Spectrum Segmentation with Wideband Signal Stitching".
 Our model is an altered 1D version of the famous UNet model with added multi-label multi-class functionality and non-local attention mechanism. 
 This model generates a label for every single IQ/sub-band (in frequency domain). The network takes as input 1024 IQs in frequency domain and outputs a class for each. This means that 25MHz is broken
 into 25MHz/1024 = 0.0244MHz sub-bands.
