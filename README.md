@@ -70,7 +70,7 @@ unet.py - Use this file to train the UNet model, note: dataset is not provided
 
 multilabel.py - Use this file to train the customized unet model
 ```bash
-usage: milin.py [-h] [-ts] [-vs] [-d]
+usage: multilabel.py [-h] [-ts] [-vs] [-d]
 
 options:
   -h, --help         show this help message and exit
