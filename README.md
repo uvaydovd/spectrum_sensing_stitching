@@ -13,7 +13,7 @@ To preprocess data, generate datasets, train standard unet, or evaluate onnx mod
     conda env create -n unet --file unet.yml
     conda activate unet
 
-To train milinet import this environment from yml:
+To train the multilabel model with self-attention import this environment from yml:
 
     conda env create -n multilabel --file multilabel.yml
     conda activate multilabel
@@ -26,14 +26,12 @@ bin2h5.py - Takes raw IQ bin files collected with USRPs and prepares them for a 
 
     usage: bin2h5.py
 
-data_gen.py - Dataset generator where signals do not overlap, signal labels are 1D arrays with multi-class labels. 
-This code is used to generate the dataset used to train the standard UNet. Highly suggest looking into code and making change
-to hyper-parameters as needed.
+data_gen.py - Dataset generator where signals do not overlap, signal labels are 1D arrays with multi-class labels. Highly suggest looking into code and making changes to hyper-parameters as needed.
 
     usage: data_gen.py
 
 data_gen_overlap.py - Dataset generator where signals do overlap, signal labels are 2D matrices where each row is a
-different class for multi-label multi-class fashion. This dataset is used to train MiliNet. Highly suggest looking into code
+different class in a multi-label multi-class fashion. This dataset is used to train the multilabel model with self-attention. Highly suggest looking into code
 and making changes to hyper-parameters as needed.
 
     usage: data_gen_overlap.py
@@ -43,10 +41,10 @@ train_unet_model.sh - convenience bash script that trains the model with unet.py
     usage: bash train_unet_model.sh DSET_FP NORMALIZE ID_GPU
     example: bash train_unet_model.sh ./dset.h5 False 0
 
-train_milinet_model.sh - convenience bash script that trains the model with MILINPYTHONFILE then converts the model to onnx for running
+train_multilabel_model.sh - convenience bash script that trains the model with MILINPYTHONFILE then converts the model to onnx for running
 
-    usage: bash train_milinet_model.sh
-    example: bash train_milinet_model.sh
+    usage: bash train_multilabel_model.sh
+    example: bash train_multilabel_model.sh
 
 run_model.sh - convenience bash script that simply runs eval_DL_onnx.py below,
 you can run it this way or call the python script directly up to you
@@ -68,7 +66,7 @@ unet.py - Use this file to train the UNet model, note: dataset is not provided
 
     example: python unet.py --dset ./dset.h5 --normalize False --id_gpu 0
 
-multilabel.py - Use this file to train the customized unet model
+multilabel.py - Use this file to train the customized unet multilabel model with self attention
 ```bash
 usage: multilabel.py [-h] [-ts] [-vs] [-d]
 
@@ -102,7 +100,6 @@ eval_DL_onnx.py - Use this file to run the model on raw IQs
 ### Contact info:
 
 Daniel Uvaydov
-(917)-224-8616
 uvaydov.d@northeastern.edu
 
 Milin Zhang
