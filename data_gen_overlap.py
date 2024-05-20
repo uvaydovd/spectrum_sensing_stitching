@@ -1,12 +1,13 @@
 import numpy as np
-import scipy as sp
-from scipy.signal import decimate
-import os as os
 import h5py
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+import os
 
+###################################
+### PROJECT SPECIFIC PARAMETERS ###
+###################################
 
 #if enabled will plot a sample
 debug = False
@@ -26,6 +27,11 @@ prob_empty = 0.05
 prob_centered = 0.5
 
 nclasses = 5
+
+#dict containing indexes of rows belonging to each protocol in classification label matrix
+#(note "empty" doesnt get its own row in the matrix) you can think of these as class labels
+#where each value corresponds to the row that will contain 1 in columns/IQs where that signal is present
+#and 0 where it isnt
 label_dict_str= {
     'wifi'      : 0,
     'lte'       : 1,
@@ -59,7 +65,14 @@ for label in signal_bw_mhz_dict:
 #path to signal bank dir
 #each class should have its own h5 file i.e. lora.h5, wifi.h5 etc
 data_fp = './signal_bank/'
-h5_folder_fp = './processed/'
+final_folder_fp = './processed/'
+if not os.path.isdir(final_folder_fp):
+    os.mkdir(final_folder_fp)
+
+###################################
+### PROJECT SPECIFIC PARAMETERS ###
+###################################
+
 
 #grab random signal from signal bank
 def get_sample(protocol):
@@ -74,7 +87,7 @@ if __name__ == '__main__':
     all_labels = []
     all_inputs = []
 
-    #control the classes you want present
+    #if you want to omit a class you can remove them from below list
     protocols_used = [0,1,2,3,4]
     for i in tqdm(range(nsamples)):
         label = np.zeros([nclasses,buf], dtype=int)
@@ -121,7 +134,7 @@ if __name__ == '__main__':
 
 
         if debug:
-            plt.plot(np.linspace(-12.5,12.5,buf),abs(input_samp[:,0] + 1j*input_samp[:,1]))
+            plt.plot(np.linspace(-bw/1_000_000/2,bw/1_000_000/2,buf),abs(input_samp[:,0] + 1j*input_samp[:,1]))
             plt.xlabel('MHz')
             plt.title(signal_protocols)
             plt.show()
@@ -133,7 +146,7 @@ if __name__ == '__main__':
         all_inputs, all_labels, test_size=0.1, random_state=42)
 
     f_test = h5py.File(
-        h5_folder_fp + 'test.h5', 'w')
+        final_folder_fp + 'test.h5', 'w')
     xtest = f_test.create_dataset('X', (X_test.shape[0], X_test.shape[1], X_test.shape[2]), dtype='f')
     ytest = f_test.create_dataset('y', (y_test.shape[0],y_test.shape[1], y_test.shape[2]), dtype='i')
 
@@ -141,7 +154,7 @@ if __name__ == '__main__':
     ytest[()] = y_test
 
     f_train = h5py.File(
-        h5_folder_fp + 'train.h5', 'w')
+        final_folder_fp + 'train.h5', 'w')
     xtrain = f_train.create_dataset('X', (X_train.shape[0], X_train.shape[1], X_train.shape[2]), dtype='f')
     ytrain = f_train.create_dataset('y', (y_train.shape[0],y_train.shape[1], y_train.shape[2]), dtype='i')
 

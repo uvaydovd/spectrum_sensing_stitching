@@ -1,35 +1,31 @@
 import numpy as np
 import scipy as sp
-from scipy.signal import decimate
-import os as os
+import os
 import h5py
 import matplotlib.pyplot as plt
 from scipy import signal
-from time import sleep
-
-label_dict = {
-    'empty'     : 0,
-    'wifi'      : 1,
-    'lte'       : 2,
-    'zigbee'    : 3,
-    'lora'      : 4,
-    'ble'       : 5
-}
 
 
+labels = ['empty', 'wifi', 'lte', 'zigbee', 'lora', 'ble']
+
+#bw of radio used to collect data, this is fixed
+bw_mhz = 25
+#input dim to the neural network
 buf = 1024
-resolution = 25/buf
+#bw resolution of a single IQ
+resolution = bw_mhz/buf
 
+#bw in mhz of each protocol
 signal_bw_mhz_dict = {
     'wifi'      : 20,
     'lte'       : 10,
     'zigbee'    : 2,
-    'lora'      : 0.125,
+    'lora'      : 0.5,
     'ble'       : 1
 }
 
+#bw in number of iqs
 signal_bw_mhz_niqs = {}
-
 for label in signal_bw_mhz_dict:
     niqs = np.ceil(signal_bw_mhz_dict[label]/resolution)
 
@@ -39,108 +35,89 @@ for label in signal_bw_mhz_dict:
     signal_bw_mhz_niqs[label] = int(niqs)
 
 
+#raw data folder
+raw_folder_fp = './raw/'
+raw_dir = os.listdir(raw_folder_fp)
 
-folder_fp = '/mnt/wines/iarpa/arena/da6000/raw/'
-dir = os.listdir(folder_fp)
-h5_folder_fp = '/mnt/wines/iarpa/arena/da6000/processed/'
-
-
-
-
-
-data_fp = h5_folder_fp + str(buf) + '_unfilt/'
-
+#folder of signal bank where data will be put into
+data_fp = './signal_bank/'
 if not os.path.isdir(data_fp):  
     os.mkdir(data_fp)
 
 
-stride = buf
-offset = 0
-plot = 0
-debug = 0
-
-#lora = 300
-#empty = 0.006
-#wifi = 0.03
-#zigbee = 0.13
-#ble = 0.001
-#lte = 0.02
-threshold = 0.009
-
-for label in label_dict:
 
 
+
+
+#this value needs to be changed depending on the protocol used and the signal strength you deem relevant
+#the values we used are found below, feel free to play with this
+threshold = {
+    'wifi': 0.03,
+    'lte': 0.02,
+    'zigbee': 0.13,
+    'lora': 300,
+    'ble': 0.001
+}
+
+#if you want to plot pre-processed data and data that will be discarded/not included (to test threshold choice)
+plot = False
+for label in labels:
+
+    #contains signals of interest
     contains_signal = []
+    #contains empty channel
     contains_empty = []
 
+
+    #used for plotting: contains time domain version of signals of interest
     contains_signal_time = []
-    contains_empty_time = []
+    #used for plotting: contains time domain version of irrelevant signals
+    contains_irrelevant_signal_time = []
 
     if label is not 'empty':
-        for file in dir:
+        for file in raw_dir:
 
-            if os.path.isfile(os.path.join(folder_fp,file)) and label in file and 'empty' not in file:
-                if debug:
-                    plt.ion()
-                    fig = plt.figure()
-                    ax = fig.add_subplot(211)
-                    line, = ax.plot(np.zeros(buf))
+            if os.path.isfile(os.path.join(raw_folder_fp,file)) and label in file and 'empty' not in file:
 
-                with open(os.path.join(folder_fp,file)) as binfile:
-                    print(os.path.join(folder_fp,file))
+                with open(os.path.join(raw_folder_fp,file)) as binfile:
+                    print(os.path.join(raw_folder_fp,file))
+
+                    #set this value to less than buf if you want samples to overlap in time
+                    stride = buf
+
+                    #Extract IQs and group them based on input size
                     all_samps = np.fromfile(binfile, dtype=sp.complex64, count=-1, offset=0)
                     all_samps = np.array([all_samps[k:k + buf] for k in range(0, len(all_samps) - 1 - buf, stride)])
 
+                    #mask that will be used to only keep band of interest
                     mask = np.ones(signal_bw_mhz_niqs[label], dtype=int)
                     mask_empty = np.zeros(buf-signal_bw_mhz_niqs[label], dtype=int)
                     final_mask = np.insert(mask_empty, len(mask_empty)//2, mask)
 
 
                     for samp_idx, samps in enumerate(all_samps):
+                        #convert to freq domain and only grab bands of interest
                         sample_f = np.fft.fft(samps)
                         sample_f = np.fft.fftshift(sample_f)
-                        # sample_f[np.where(final_mask == 0)[0]] = 0
+                        sample_f[np.where(final_mask == 0)[0]] = 0
+
+                        #Calculate energy and compare to threshold
                         power = np.abs(sample_f)**2
                         energy = np.sum(power)/len(power)
-
-                        if energy > threshold:
+                        if energy > threshold[label]:
                             contains_signal.append(np.transpose(np.stack((np.real(sample_f), np.imag(sample_f)))))
                             if plot:
                                 contains_signal_time.append(np.transpose(np.stack((np.real(samps), np.imag(samps)))))
                         else:
-                            contains_empty.append(np.transpose(np.stack((np.real(sample_f), np.imag(sample_f)))))
                             if plot:
-                                contains_empty_time.append(np.transpose(np.stack((np.real(samps), np.imag(samps)))))
+                                contains_irrelevant_signal_time.append(np.transpose(np.stack((np.real(samps), np.imag(samps)))))
 
-
-                        # samps = np.transpose(np.stack((np.real(samps), np.imag(samps))))
-                        # samps = np.array([samps[k:k + buf] for k in range(0, len(samps) - 1 - buf, stride)])
-                        # print("Number of Samples: " + str(samps.shape[0]))
-                        #
-                        # name = os.path.splitext(file)[0] + '_' + str(downsample_freq//1000) + 'k'
-
-                        # f = h5py.File(data_fp + name + '.h5', 'w')
-                        #
-                        # dset = f.create_dataset(name, (samps.shape[0], samps.shape[1], samps.shape[2]), dtype='f')
-                        #
-                        # dset[()] = samps
-                        #
-                        # f.close()
-
-                        if debug:
-                            line.set_ydata(power)
-                            plt.title(file + ': ' + str(energy) + ' ' + str(samp_idx) + '/' + str(len(all_samps)))
-                            plt.ylim([0, 10])
-                            fig.canvas.draw()
-                            fig.canvas.flush_events()
-                            sleep(0.01)
 
         contains_signal = np.array(contains_signal)
-        contains_empty = np.array(contains_empty)
 
         print("Number of Signal Samples: " + str(contains_signal.shape[0]))
-        print("Number of Empty Samples: " + str(contains_empty.shape[0]))
 
+        #store in h5 file
         f_signal = h5py.File(data_fp + label + '.h5', 'w')
         dset = f_signal.create_dataset(label, (contains_signal.shape[0], contains_signal.shape[1], contains_signal.shape[2]), dtype='f')
         dset[()] = contains_signal
@@ -148,7 +125,7 @@ for label in label_dict:
 
         if plot:
             contains_signal_time = np.array(contains_signal_time)
-            contains_empty_time = np.array(contains_empty_time)
+            contains_irrelevant_signal_time = np.array(contains_irrelevant_signal_time)
 
             contains_signal_iq = contains_signal_time[:,:,0] + 1j* contains_signal_time[:,:,1]
 
@@ -160,9 +137,9 @@ for label in label_dict:
             plt.title('Signal ' + label)
             plt.show()
 
-            contains_empty_iq = contains_empty_time[:,:,0] + 1j* contains_empty_time[:,:,1]
+            contains_irrelevant_iq = contains_irrelevant_signal_time[:,:,0] + 1j* contains_irrelevant_signal_time[:,:,1]
 
-            f_empty, t_empty, Sxx_empty = signal.spectrogram(contains_empty_iq.flatten()[:int(len(contains_empty_iq.flatten()) * 0.1)], 25_000_000, return_onesided=False, nperseg=buf, noverlap=0)
+            f_empty, t_empty, Sxx_empty = signal.spectrogram(contains_irrelevant_iq.flatten()[:int(len(contains_irrelevant_iq.flatten()) * 0.1)], 25_000_000, return_onesided=False, nperseg=buf, noverlap=0)
             Sxx_empty = np.fft.fftshift(Sxx_empty, axes=0)
             plt.pcolormesh(t_empty, np.fft.fftshift(f_empty), Sxx_empty, shading='auto', vmax=np.max(Sxx_signal)/100)
             plt.ylabel('Frequency [Hz]')
@@ -173,20 +150,25 @@ for label in label_dict:
 
     else:
 
-        for file in dir:
-            if os.path.isfile(os.path.join(folder_fp, file)) and label in file and 'empty' in file:
+        for file in raw_dir:
+            if os.path.isfile(os.path.join(raw_folder_fp, file)) and label in file and 'empty' in file:
 
-                with open(os.path.join(folder_fp, file)) as binfile:
-                    print(os.path.join(folder_fp, file))
+                with open(os.path.join(raw_folder_fp, file)) as binfile:
+                    print(os.path.join(raw_folder_fp, file))
+
+                    #extract iqs
                     all_samps = np.fromfile(binfile, dtype=sp.complex64, count=-1, offset=0)
                     all_samps = np.array([all_samps[k:k + buf] for k in range(0, len(all_samps) - 1 - buf, stride)])
                     for samp_idx, samps in enumerate(all_samps):
+                        #convert to freq and store
                         sample_f = np.fft.fft(samps)
                         sample_f = np.fft.fftshift(sample_f)
 
                         contains_empty.append(np.transpose(np.stack((np.real(sample_f), np.imag(sample_f)))))
 
         contains_empty = np.array(contains_empty)
+
+        print("Number of Empty Samples: " + str(contains_empty.shape[0]))
 
         f_signal = h5py.File(data_fp + label + '.h5', 'w')
         dset = f_signal.create_dataset(label, (contains_empty.shape[0], contains_empty.shape[1], contains_empty.shape[2]), dtype='f')

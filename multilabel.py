@@ -7,10 +7,10 @@ import argparse
 
 def arg_parser():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-ts','--TrainSet',type=str,metavar='',default='./overlap_1024_25mhz_3days_train_2sig.h5',
+    parser.add_argument('-ts','--TrainSet',type=str,metavar='',default='./train.h5',
                         help='filepath of training set')
-    parser.add_argument('-vs','--ValSet',type=str,metavar='',default='./overlap_1024_25mhz_3days_test_2sig.h5',
-                        help='filepath of valiation set')
+    parser.add_argument('-vs','--ValSet',type=str,metavar='',default='./test.h5',
+                        help='filepath of validation set')
     parser.add_argument('-d','--Device',type=int,default=-1,metavar='',
                         help='specify the device for running model')
     return parser.parse_args()
@@ -28,7 +28,7 @@ def train():
     lr=1e-3
     epochs=100
     pt=30
-    ckpt = 'milin.pth'
+    ckpt = 'multilabel.pth'
     handler = TrainValHandler(model,device,trainset,valset,ckpt,lr=lr,epochs=epochs,patience=pt,batchsize=batchsize)
     history = handler.train()
 
@@ -39,7 +39,7 @@ def train():
     torch_out = model(dummy_input)
     torch.onnx.export(model,         # model being run 
             dummy_input,       # model input (or a tuple for multiple inputs) 
-            "milin.onnx",       # where to save the model  
+            "multilabel.onnx",       # where to save the model
             export_params=True,  # store the trained parameter weights inside the model file 
             opset_version=11,    # the ONNX version to export the model to 
             do_constant_folding=True,  # whether to execute constant folding for optimization 

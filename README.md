@@ -1,85 +1,64 @@
 # Stitching the Spectrum: Semantic Spectrum Segmentation with Wideband Signal Stitching
-# UNDER CONSTRUCTION: IN PROCESS OF FINALIZING AND UPLOADING DATA
 
-This repo contains the code used in the paper: "Stitching the Spectrum: Semantic Spectrum Segmentation with Wideband Signal Stitching".
+# UNDER CONSTRUCTION
+
+This repo contains the code used in the paper: [D. Uvaydov, M. Zhang, C. Robinson, S. D'Oro, T. Melodia and F. Restuccia, "Stitching the Spectrum: Semantic Spectrum Segmentation with Wideband Signal Stitching," Proc. of IEEE Intl. Conf. on Computer Communications (INFOCOM), Vancouver, BC, Canada, May 2024]. 
+We utilize a semi-augmented over-the-air data generator to create our diverse dataset.
 Our model is an altered 1D version of the famous UNet model with added multi-label multi-class functionality and non-local attention mechanism. 
 This model generates a label for every single IQ/sub-band (in frequency domain). The network takes as input 1024 IQs in frequency domain and outputs a class for each. This means that 25MHz is broken
-into 25MHz/1024 = 0.0244MHz sub-bands.
+into 25MHz/1024 = 0.0244MHz sub-bands to be classified. 
+
+The data generator below can be repurposed for other wireless applications (classifying things other than what was classified in the paper
+e.g. MCS, RF ID, etc.). To do so one would need to create their own signal bank which means
+creating their own version of ```bin2h5.py```. This file takes raw IQ files grabbed from GNU Radio and pre-processes them
+in a manner laid out in the paper. It's outputs are one .h5 file per class (e.g. wifi.h5, lte.h5, etc.) containing a 
+matrix with the signals of shape ```(number of samples, number of IQs, 2)```. Once a signal bank is generated than changes would need to be made
+to the project specific parameters (everything defined outside of the main() function) of the data generator which can be found in ```data_gen_overlap.py```
+
 
 ## Environment:
 
-To preprocess data, generate datasets, train standard unet, or evaluate onnx model import this environment from yml:
-
-    conda env create -n unet --file unet.yml
-    conda activate unet
-
-To train the multilabel model with self-attention import this environment from yml:
+To generate the signal bank, use the data generator, or train the multilabel model with self-attention used in the paper import this environment from yml:
 
     conda env create -n multilabel --file multilabel.yml
     conda activate multilabel
 
+To evaluate onnx version of model (version we use for real-time inference) import this environment from yml:
+
+    conda env create -n eval_DL --file eval_DL.yml
+    conda activate eval_DL
 
 ## Code:
 
-bin2h5.py - Takes raw IQ bin files collected with USRPs and prepares them for a signal bank to be used by data generators 
-(not provided).
+```bin2h5.py``` - Takes raw IQ bin files collected with USRPs and prepares them for a signal bank to be used by data generators. 
+This code is very specific to our paper, if you would like to use our data generator for your own project, you would need
+to make your own version of this file. The only thing the data generator expects is that the samples for each class is 
+contained in a single h5 file (e.g. wifi.h5, lte.h5, etc), and each h5 file contains a matrix of shape ```(number of samples, number of IQs, 2)```, 
+where "2" here is for the real and imaginary channels.
 
-    usage: bin2h5.py
 
-data_gen.py - Dataset generator where signals do not overlap, signal labels are 1D arrays with multi-class labels. Highly suggest looking into code and making changes to hyper-parameters as needed.
+```data_gen_overlap.py``` - Dataset generator where signals overlap, signal labels are 2D matrices where each row is a
+different class in a multi-label multi-class fashion. The dataset resulting from this code is used to train the 
+multilabel model with self-attention. Highly suggest looking into code
+and making changes to project specific hyper-parameters as needed for personal use.
 
-    usage: data_gen.py
 
-data_gen_overlap.py - Dataset generator where signals do overlap, signal labels are 2D matrices where each row is a
-different class in a multi-label multi-class fashion. This dataset is used to train the multilabel model with self-attention. Highly suggest looking into code
-and making changes to hyper-parameters as needed.
-
-    usage: data_gen_overlap.py
-
-train_unet_model.sh - convenience bash script that trains the model with unet.py then converts the model to onnx for running
-
-    usage: bash train_unet_model.sh DSET_FP NORMALIZE ID_GPU
-    example: bash train_unet_model.sh ./dset.h5 False 0
-
-train_multilabel_model.sh - convenience bash script that trains the model with MILINPYTHONFILE then converts the model to onnx for running
-
-    usage: bash train_multilabel_model.sh
-    example: bash train_multilabel_model.sh
-
-run_model.sh - convenience bash script that simply runs eval_DL_onnx.py below,
-you can run it this way or call the python script directly up to you
-
-    usage: bash run_model.sh ID_GPU SAMP_RATE INPUT_DIR_FP MODEL_FP NORMALIZE
-    example: bash run_model.sh 0 25 ./NEU_wifi_1 ./unet.onnx True
-
-unet.py - Use this file to train the UNet model, note: dataset is not provided
-
-    usage: unet.py [-h] [--dset DSET] [--normalize NORMALIZE] [--id_gpu ID_GPU]
-
-    GPU and Model Specifications
-
-    optional arguments:
-      -h, --help                show this help message and exit
-      --dset DSET               filepath of h5 dataset
-      --normalize NORMALIZE     choose whether to l2 normalize input or not
-      --id_gpu ID_GPU           Choose GPU to use
-
-    example: python unet.py --dset ./dset.h5 --normalize False --id_gpu 0
-
-multilabel.py - Use this file to train the customized unet multilabel model with self attention
+```multilabel.py``` - Use this file to train the customized unet multilabel model with self attention
 ```bash
 usage: multilabel.py [-h] [-ts] [-vs] [-d]
 
 options:
   -h, --help         show this help message and exit
   -ts , --TrainSet   filepath of training set (default:
-                     ./overlap_1024_25mhz_3days_train_2sig.h5)
-  -vs , --ValSet     filepath of valiation set (default:
-                     ./overlap_1024_25mhz_3days_test_2sig.h5)
+                     ./train.h5)
+  -vs , --ValSet     filepath of validation set (default:
+                     ./test.h5)
   -d , --Device      specify the device for running model (default: -1)
+  
+example: python multilabel.py -ts train.h5 -vs test.h5 -d 0
 ```
 
-eval_DL_onnx.py - Use this file to run the model on raw IQs
+```eval_DL_onnx.py``` - Use this file to run the model on raw IQs
 
     usage: eval_DL_onnx.py [-h] [--id_gpu ID_GPU] [--samp_rate SAMP_RATE] [--input INPUT] [--model MODEL] [--normalize NORMALIZE]
 
@@ -91,11 +70,22 @@ eval_DL_onnx.py - Use this file to run the model on raw IQs
       --samp_rate SAMP_RATE     specifies the sampling rate in MHz, for now must be multiple of 25 MHz
       --input INPUT             specifies the IQ samples bin file to be fed to the network
       --model MODEL             specifies the model filepath
-      --normalize NORMALIZE     specifies whether to normalize data or not
 
-    example: python eval_DL_onnx.py --id_gpu 0 --samp_rate 25 --input ./test_data.bin --model ./unet.onnx --normalize False
+    example: python eval_DL_onnx.py --id_gpu 0 --samp_rate 25 --input ./test_data.bin --model ./multilabel.onnx
 
+## Citation
 
+D. Uvaydov, M. Zhang, C. Robinson, S. D'Oro, T. Melodia and F. Restuccia, "Stitching the Spectrum: Semantic Spectrum Segmentation with Wideband Signal Stitching," Proc. of IEEE Intl. Conf. on Computer Communications (INFOCOM), Vancouver, BC, Canada, May 2024
+
+```sh
+@inproceedings{uvaydov2024infocom,
+  author = {Uvaydov, Daniel and Zhang, Milin and Robinson, Clifton P and D'Oro, Salvatore and Melodia, Tommaso and Restuccia, Francesco},
+  booktitle = {{IEEE INFOCOM 2024 - IEEE Conference on Computer Communications}},
+  title = {{Stitching the Spectrum: Semantic Spectrum Segmentation with Wideband Signal Stitching}},
+  year = {2024},
+  month = {May}
+}
+```
 
 ### Contact info:
 
@@ -104,3 +94,9 @@ uvaydov.d@northeastern.edu
 
 Milin Zhang
 zhang.mil@northeastern.edu
+
+
+
+[//]: # 
+
+   [D. Uvaydov, M. Zhang, C. Robinson, S. D'Oro, T. Melodia and F. Restuccia, "Stitching the Spectrum: Semantic Spectrum Segmentation with Wideband Signal Stitching," Proc. of IEEE Intl. Conf. on Computer Communications (INFOCOM), Vancouver, BC, Canada, May 2024]: <https://arxiv.org/abs/2402.03465>

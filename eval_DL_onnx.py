@@ -1,21 +1,18 @@
 #Author: Daniel Uvaydov
-#Use to run DL network on time series IQs
-#Network takes as input 1024 IQs in frequency domain
+#Use to evaluate multilabel network on time series IQs given in binfile (like collected from GNU Radio)
 #Network outputs label for each sub-band or each IQ (google semantic segmentation)
 
 
 import numpy as np
-import json
 import onnxruntime as rt
 import argparse
 import os
-from sklearn.preprocessing import normalize
 import matplotlib.pyplot as plt
 import matplotlib
 import torch
 from torch import nn
 
-def aggregate(y_pred, nparts):
+def aggregate(y_pred):
 
     all_pred = []
     for band in y_pred:
@@ -42,20 +39,20 @@ def ms_estimate(tensor):
 def main():
 
 
-    #Open IQ file
+    #Open IQ file and grab fist 1024*1024 IQ samples to be evaluated
     with open(iq_fp) as binfile:
         all_samps = np.fromfile(binfile, dtype=np.complex64, count=1024*1024, offset=0)
 
     assert (len(all_samps)%inp_dim == 0), "Input needs to be multiple of 1024"
 
-    #reshape to put in DL network
     all_samps = np.reshape(all_samps, [-1, inp_dim*scale_fact])
-
     #Perform fft and fftshift on each sample
     all_samps_frequency = np.fft.fft(all_samps)
     all_samps_frequency = np.fft.fftshift(all_samps_frequency, axes=1)
 
     if scale_fact > 1:
+
+        #break bandwidth into smaller overlapped 25 MHz bandwidths
         all_samps_frequency_strided = []
         for samp in all_samps_frequency:
             samp = np.array([samp[k:k + inp_dim] for k in range(0, len(samp) - inp_dim + 1, stride)])
@@ -64,46 +61,34 @@ def main():
         nparts = all_samps_frequency_strided.shape[1]
 
         all_samps_frequency_strided = np.stack((np.real(all_samps_frequency_strided), np.imag(all_samps_frequency_strided)), axis=-1)
-
-        if args.normalize:
-            all_samps_frequency_strided = normalize(np.reshape(all_samps_frequency_strided, (-1, 2)))
         all_samps_frequency_strided = np.reshape(all_samps_frequency_strided, (-1, 1024, 2))
-
-        if args.channel_first:
-            all_samps_frequency_strided = np.swapaxes(all_samps_frequency_strided,1,2)
-            min_p_test = ms_estimate(all_samps_frequency_strided).reshape(-1,1,1)
-            correction = min_p_test/0.0015 # 0.0015 is the estimated noise in training set
-            all_samps_frequency_strided = all_samps_frequency_strided/np.sqrt(correction)
+        all_samps_frequency_strided = np.swapaxes(all_samps_frequency_strided,1,2)
+        min_p_test = ms_estimate(all_samps_frequency_strided).reshape(-1,1,1)
+        correction = min_p_test/0.0015 # 0.0015 is the estimated noise in training set
+        all_samps_frequency_strided = all_samps_frequency_strided/np.sqrt(correction)
 
         y_pred = sess.run(None, {input_name: all_samps_frequency_strided.astype(np.float32)})[0]
 
         y_pred = np.swapaxes(y_pred, 1,2)
         y_pred = np.reshape(y_pred, [-1,nparts,nclasses,inp_dim])
-        y_pred = aggregate(y_pred, nparts)
+        y_pred = aggregate(y_pred)
         y_pred = np.swapaxes(y_pred, 1,2)
 
     else:
         all_samps_frequency = np.stack((np.real(all_samps_frequency), np.imag(all_samps_frequency)), axis=-1)
-        if args.normalize:
-            all_samps_frequency = normalize(np.reshape(all_samps_frequency, (-1, 2)))
         all_samps_frequency = np.reshape(all_samps_frequency, (-1, 1024, 2))
-
-        if args.channel_first:
-            all_samps_frequency = np.swapaxes(all_samps_frequency,1,2)
-            min_p_test = ms_estimate(all_samps_frequency).reshape(-1,1,1)
-            correction = min_p_test/0.0015 # 0.0015 is the estimated noise in training set
-            all_samps_frequency = all_samps_frequency/np.sqrt(correction)
+        all_samps_frequency = np.swapaxes(all_samps_frequency,1,2)
+        min_p_test = ms_estimate(all_samps_frequency).reshape(-1,1,1)
+        correction = min_p_test/0.0015 # 0.0015 is the estimated noise in training set
+        all_samps_frequency = all_samps_frequency/np.sqrt(correction)
 
         y_pred = sess.run(None, {input_name: all_samps_frequency.astype(np.float32)})[0]
 
-    if args.channel_first:
-        y_pred[y_pred<=0.5]=0
-        spec_occup = np.sum(y_pred,axis=1)
-        spec_empty = np.expand_dims(np.logical_not(spec_occup,out=np.zeros_like(spec_occup)),axis=1)
-        y_pred = np.concatenate((spec_empty,y_pred),axis=1)
-        y_pred = np.argmax(y_pred,axis=1)
-    else:
-        y_pred = np.argmax(y_pred, axis=-1)
+    y_pred[y_pred<=0.5]=0
+    spec_occup = np.sum(y_pred,axis=1)
+    spec_empty = np.expand_dims(np.logical_not(spec_occup,out=np.zeros_like(spec_occup)),axis=1)
+    y_pred = np.concatenate((spec_empty,y_pred),axis=1)
+    y_pred = np.argmax(y_pred,axis=1)
 
     a, b = np.meshgrid(np.linspace(0,1024*1024,1024),np.linspace(0,1024,1024))
     fig, ax = plt.subplots(1,2,sharey=True,figsize=(9,4))
@@ -132,12 +117,8 @@ def get_args():
                         help='specifies the sampling rate in MHz')
     parser.add_argument('--input', default='./test_data.bin', type=str,
                         help='specifies the IQ samples bin file to be fed to the network')
-    parser.add_argument('--model', default='./unet.onnx', type=str,
+    parser.add_argument('--model', default='./multilabel.onnx', type=str,
                         help='specifies the model filepath')
-    parser.add_argument('--normalize', default=False, type=bool,
-                        help='specifies whether to normalize data or not')
-    parser.add_argument('--channel_first', default=False, type=bool,
-                        help='specifies the input shape')
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -158,7 +139,7 @@ if __name__ == "__main__":
 
     #############Constants#############
 
-    #Number of overt classes
+    #Number of classes (including empty channel)
     nclasses = 6
     #Bandwidth
     bw = args.samp_rate * 1e6
@@ -168,7 +149,7 @@ if __name__ == "__main__":
     inp_dim = 1024
     #2 channels one for I and one for Q
     nchannels = 2
-    #stride for sliding in mhz in BW is higher than 25MHz
+    #stride for sliding in mhz if BW is higher than 25MHz,
     stride_mhz = 12.5
     stride = int((inp_dim*scale_fact)*(stride_mhz/args.samp_rate))
     #Folder containing IQ dat file
@@ -176,18 +157,5 @@ if __name__ == "__main__":
     #Model filepath
     model_fp = args.model
 
-
-    #Dictionary mapping protocols to labels
-    label_dict_str= {
-        'empty'     : 0,
-        'wifi'      : 1,
-        'lte'       : 2,
-        'zigbee'    : 3,
-        'lora'      : 4,
-        'ble'       : 5
-    }
-
-    #Frequency array in MHz
-    freq_arr = np.linspace(-(bw/1e6)/2, (bw/1e6)/2, int(scale_fact*inp_dim))
 
     main()
