@@ -15,8 +15,8 @@ To preprocess data, generate datasets, train standard unet, or evaluate onnx mod
 
 To train milinet import this environment from yml:
 
-    conda env create -n milin --file milin_env.yml
-    conda activate milin
+    conda env create -n multilabel --file multilabel.yml
+    conda activate multilabel
 
 
 ## Code:
@@ -68,9 +68,9 @@ unet.py - Use this file to train the UNet model, note: dataset is not provided
 
     example: python unet.py --dset ./dset.h5 --normalize False --id_gpu 0
 
-milin.py - Use this file to train the customized unet model
+multilabel.py - Use this file to train the customized unet model
 ```bash
-usage: milin.py [-h] [-ts] [-vs] [-d]
+usage: multilabel.py [-h] [-ts] [-vs] [-d]
 
 options:
   -h, --help         show this help message and exit
