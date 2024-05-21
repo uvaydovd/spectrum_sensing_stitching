@@ -58,7 +58,7 @@ options:
 example: python multilabel.py -ts train.h5 -vs test.h5 -d 0
 ```
 
-```eval_DL_onnx.py``` - Use this file to run the model on raw IQs. The code expects the IQs in the form of a binary file, similiar to the output file that GNU Radio generates from a file sink.
+```eval_DL_onnx.py``` - Use this file to run the model on raw IQs. The code expects the IQs in the form of a binary file, similiar to the output file that GNU Radio generates from a file sink, specifically the binary file contains a series of two 32-bit floating point numbers, one each for the real and imaginary components.
 
     usage: eval_DL_onnx.py [-h] [--id_gpu ID_GPU] [--samp_rate SAMP_RATE] [--input INPUT] [--model MODEL] [--normalize NORMALIZE]
 
