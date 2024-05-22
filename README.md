@@ -12,7 +12,7 @@ The data generator below can be repurposed for other wireless applications (clas
 e.g. MCS, RF ID, etc.). To do so one would need to create their own signal bank which means
 creating their own version of ```bin2h5.py```. This file takes raw IQ files grabbed from GNU Radio and pre-processes them
 in a manner laid out in the paper. It's outputs are one .h5 file per class (e.g. wifi.h5, lte.h5, etc.) containing a 
-matrix with the signals of shape ```(number of samples, number of IQs, 2)```. Once a signal bank is generated then changes would need to be made
+matrix with the signals of shape ```(number of samples, number of IQs, 2)```. Once a user specific signal bank is generated then changes would need to be made
 to the project specific parameters in ```data_gen_overlap.py``` (everything defined outside of the main() function) of the data generator.
 
 
