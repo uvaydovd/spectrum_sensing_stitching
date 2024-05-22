@@ -15,9 +15,9 @@ debug = False
 nsamples = 500_000
 #max number of signals to be plotted at the same time in frequency
 max_simultaneous_signals = 2
-#total observable bandwidth
+#total observable bandwidth (for our signal bank this needs to be a multiple of 25MHz)
 bw = 25_000_000
-#input size to the NN
+#input size to the NN (for our signal bank this needs to be a multiple of 1024)
 buf = 1024
 #frequency resolution or bw of a single bin in the NN input
 resolution = (bw/1000000)/buf
