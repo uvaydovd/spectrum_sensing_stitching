@@ -6,13 +6,13 @@ We utilize a semi-augmented over-the-air data generator to create our diverse da
 Our model is an altered 1D version of the famous UNet model with added multi-label multi-class functionality and non-local attention mechanism. 
 This model generates a label for every single IQ/sub-band (in frequency domain). The network takes as input 1024 IQs in frequency domain and outputs a class for each. This means that 25MHz is brokenvinto 25MHz/1024 = 0.0244MHz sub-bands to be classified. 
 
-The data used in this paper can be found [here]. We provide both the raw data we used to create the signal bank and the signal bank itself. Our signal bank is only 17GB but can be used with the data generator to create a quasi-infinite sized dataset.
+The data used in this paper can be found [here]. We provide both the raw data we used to create the signal bank and the signal bank itself. The raw data was collected with a 25MHz bandwidth/sampling frequency for our experimental use case. Our signal bank is only 17GB but can be used with the data generator to create a quasi-infinite sized dataset. 
 
 The data generator below can be repurposed for other wireless applications (classifying things other than what was classified in the paper
-e.g. MCS, RF ID, etc.). To do so one would need to create their own signal bank which means
-creating their own version of ```bin2h5.py```. This file takes raw IQ files grabbed from GNU Radio and pre-processes them
+e.g. MCS, RF ID, etc.). To do so one would need to create their own signal bank which means collecting their own mini raw dataset, remember the point of this work
+is to alleviate the difficulty of this step not fully eradicate it. To do so find a small, ideally empty bandwdith (we used 25 MHz), and collect your desired signals, this does not need to be a large data collection campaign as the dataset generator will take your raw data and turn it into a large diverse wideband dataset, more information on this process can be found in the paper. Once collecting raw data then one would need to create a signal bank with their own version of ```bin2h5.py```. This file takes raw IQ files grabbed from GNU Radio and pre-processes them
 in a manner laid out in the paper. It's outputs are one .h5 file per class (e.g. wifi.h5, lte.h5, etc.) containing a 
-matrix with the signals of shape ```(number of samples, number of IQs, 2)```. Once a user specific signal bank is generated then changes would need to be made
+matrix with the signals of shape ```(number of samples, number of IQs, 2)```. After a user specific signal bank is generated then changes would need to be made
 to the project specific parameters in ```data_gen_overlap.py``` (everything defined outside of the main() function) of the data generator.
 
 
