@@ -51,9 +51,9 @@ options:
   -h, --help         show this help message and exit
   -m , --Mode        specify training or testing (default: train)
   -ts , --TrainSet   filepath of training set (default:
-                     ./overlap_1024_25mhz_3days_train_2sig.h5)
+                     ./train.h5)
   -vs , --ValSet     filepath of valiation set (default:
-                     ./overlap_1024_25mhz_3days_test_2sig.h5)
+                     ./val.h5)
   -d , --Device      specify the gpu device, -1 means cpu (default: -1)
 
   
