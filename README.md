@@ -43,7 +43,7 @@ multilabel model with self-attention. Highly suggest looking into code
 and making changes to project specific hyper-parameters as needed for personal use.
 
 
-```multilabel.py``` - Use this file to train the customized unet multilabel model with self attention
+```multilabel.py``` - Use this file to train or test the customized unet multilabel model with self attention
 ```bash
 usage: multilabel.py [-h] [-m] [-ts] [-vs] [-d]
 
