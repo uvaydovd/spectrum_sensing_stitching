@@ -43,19 +43,21 @@ multilabel model with self-attention. Highly suggest looking into code
 and making changes to project specific hyper-parameters as needed for personal use.
 
 
-```multilabel.py``` - Use this file to train the customized unet multilabel model with self attention
+```multilabel.py``` - Use this file to train or test the customized unet multilabel model with self attention
 ```bash
-usage: multilabel.py [-h] [-ts] [-vs] [-d]
+usage: multilabel.py [-h] [-m] [-ts] [-vs] [-d]
 
 options:
   -h, --help         show this help message and exit
+  -m , --Mode        specify training or testing (default: train)
   -ts , --TrainSet   filepath of training set (default:
-                     ./train.h5)
-  -vs , --ValSet     filepath of validation set (default:
-                     ./test.h5)
-  -d , --Device      specify the device for running model (default: -1)
+                     ./overlap_1024_25mhz_3days_train_2sig.h5)
+  -vs , --ValSet     filepath of valiation set (default:
+                     ./overlap_1024_25mhz_3days_test_2sig.h5)
+  -d , --Device      specify the gpu device, -1 means cpu (default: -1)
+
   
-example: python multilabel.py -ts train.h5 -vs test.h5 -d 0
+example: python multilabel.py -m train -ts train.h5 -vs test.h5 -d 0
 ```
 
 ```eval_DL_onnx.py``` - Use this file to run the model on raw IQs. The code expects the IQs in the form of a binary file, similiar to the output file that GNU Radio generates from a file sink, specifically the binary file contains a series of two 32-bit floating point numbers, one each for the real and imaginary components.

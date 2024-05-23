@@ -38,7 +38,7 @@ class TrainValHandler():
     
     def save_model(self):
         path = self.path
-        torch.save(self.model,path)
+        torch.save(self.model.state_dict(),path)
 
     def train_one_epoch(self):
         self.model.train()
@@ -106,7 +106,7 @@ class TrainValHandler():
 class TestHandler():
     def __init__(self,model,device,testset,batchsize,
                  labels = ["WiFi", "LTE", "Zigbee", "LoRa", "BLE"]) -> None:
-        self.model = torch.load(model,map_location='cpu')
+        self.model = model
         self.device = device
         self.model.to(device)
         self.model.eval()
@@ -194,5 +194,5 @@ class TestHandler():
         iou = self.compute_iou(intersec,union)
         recall = self.compute_recall(intersec,area_t)
         precision = self.compute_precision(intersec,area_p)
-        return iou, recall, precision
+        return iou.cpu().numpy(), recall.cpu().numpy(), precision.cpu().numpy()
 

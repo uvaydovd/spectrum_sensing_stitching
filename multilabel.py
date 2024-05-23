@@ -1,22 +1,23 @@
 import torch
 import numpy as np
 from src.models import U_Net
-from src.handler import TrainValHandler
+from src.handler import TrainValHandler,TestHandler
 from matplotlib import pyplot as plt
 import argparse
 
 def arg_parser():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-ts','--TrainSet',type=str,metavar='',default='./train.h5',
+    parser.add_argument('-m','--Mode',type=str,metavar='',default='train',
+                        help='specify training or testing')
+    parser.add_argument('-ts','--TrainSet',type=str,metavar='',default='./overlap_1024_25mhz_3days_train_2sig.h5',
                         help='filepath of training set')
-    parser.add_argument('-vs','--ValSet',type=str,metavar='',default='./test.h5',
-                        help='filepath of validation set')
+    parser.add_argument('-vs','--ValSet',type=str,metavar='',default='./overlap_1024_25mhz_3days_test_2sig.h5',
+                        help='filepath of valiation set')
     parser.add_argument('-d','--Device',type=int,default=-1,metavar='',
-                        help='specify the device for running model')
+                        help='specify the gpu device, -1 means cpu')
     return parser.parse_args()
 
-def train():
-    args = arg_parser()
+def train(args):
     trainset = args.TrainSet
     valset = args.ValSet
     model = U_Net(2,5,is_attention=True,alpha=1,beta=5)
@@ -33,7 +34,7 @@ def train():
     history = handler.train()
 
     # retrieve the best model and convert to onnx
-    model = torch.load(ckpt,map_location='cpu')
+    model.load_state_dict(torch.load(ckpt), strict=False)
     model.eval()
     dummy_input = torch.randn(1, 2, 1024, requires_grad=True)  
     torch_out = model(dummy_input)
@@ -50,6 +51,25 @@ def train():
     print(" ") 
     print('Model has been converted to ONNX') 
 
-
+def test(args):
+    testset = args.ValSet
+    model = U_Net(2,5,is_attention=True,alpha=1,beta=5)
+    if args.Device == -1:
+        device = 'cpu'
+    else:
+        device = 'cuda:%d'%args.Device
+    batchsize = 256
+    ckpt = 'multilabel.pth'
+    model.load_state_dict(torch.load(ckpt), strict=False)
+    handler = TestHandler(model,device,testset,batchsize)
+    iou, recall, precision = handler.evaluate()
+    print('iou:',iou)
+    print('precision:',precision)
+    print('recall:',recall)
+    
 if __name__ == '__main__':
-    train()
+    args = arg_parser()
+    if args.Mode == 'Train':
+        train(args)
+    else:
+        test(args)
